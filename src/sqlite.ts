@@ -21,6 +21,13 @@ interface TableCell {
   payload: Uint8Array;
 }
 
+interface PreparedTableCell extends TableCell {
+  local: Uint8Array;
+  overflow: Uint8Array;
+  cellSize: number;
+  overflowPage?: number;
+}
+
 interface IndexCell {
   key: SqlValue[];
   payload: Uint8Array;
@@ -70,8 +77,9 @@ export function buildSqlite(tables: SqlTable[]): Uint8Array {
 
 function buildTableTree(cells: TableCell[], alloc: (page: Uint8Array) => number): number {
   if (!cells.length) return alloc(makeLeafPage(13, [], 0, tableLeafCell));
-  let level = packLeaf(cells, (cell) => tableLeafCell(cell).length).map((group) => ({
-    page: alloc(makeLeafPage(13, group, 0, tableLeafCell)),
+  const prepared = cells.map(prepareTableCell);
+  let level = packLeaf(prepared, (cell) => cell.cellSize).map((group) => ({
+    page: alloc(makeTableLeafPage(group, alloc)),
     max: group[group.length - 1].key,
   }));
   while (level.length > 1) {
@@ -105,6 +113,60 @@ function tableLeafCell(cell: TableCell): Uint8Array {
   return concatBytes([bytes(varint(cell.payload.length)), bytes(varint(cell.key)), cell.payload]);
 }
 
+function prepareTableCell(cell: TableCell): PreparedTableCell {
+  const size = cell.payload.length;
+  const maxLocal = PAGE_SIZE - 35;
+  const minLocal = Math.floor(((PAGE_SIZE - 12) * 32) / 255) - 23;
+  let localLength = size;
+  if (size > maxLocal) {
+    const candidate = minLocal + ((size - minLocal) % (PAGE_SIZE - 4));
+    localLength = candidate <= maxLocal ? candidate : minLocal;
+  }
+  return {
+    ...cell,
+    local: cell.payload.subarray(0, localLength),
+    overflow: cell.payload.subarray(localLength),
+    cellSize:
+      varint(size).length + varint(cell.key).length + localLength + (localLength < size ? 4 : 0),
+  };
+}
+
+function tableLeafCellData(cell: PreparedTableCell): Uint8Array {
+  return concatBytes([
+    bytes(varint(cell.payload.length)),
+    bytes(varint(cell.key)),
+    cell.local,
+    ...(cell.overflow.length ? [uint32(cell.overflowPage ?? 0)] : []),
+  ]);
+}
+
+function makeTableLeafPage(
+  cells: PreparedTableCell[],
+  alloc: (page: Uint8Array) => number,
+): Uint8Array {
+  for (const cell of cells) {
+    if (cell.overflow.length) cell.overflowPage = allocOverflow(cell.overflow, alloc);
+  }
+  return makeLeafPage(13, cells, 0, tableLeafCellData);
+}
+
+function allocOverflow(data: Uint8Array, alloc: (page: Uint8Array) => number): number {
+  const chunks: Uint8Array[] = [];
+  for (let offset = 0; offset < data.length; offset += PAGE_SIZE - 4) {
+    chunks.push(data.subarray(offset, offset + PAGE_SIZE - 4));
+  }
+  const pages = chunks.map((chunk) => {
+    const page = new Uint8Array(PAGE_SIZE);
+    page.set(chunk, 4);
+    return page;
+  });
+  const numbers = pages.map((page) => alloc(page));
+  pages.forEach((page, i) => {
+    new DataView(page.buffer).setUint32(0, i + 1 < numbers.length ? numbers[i + 1] : 0, false);
+  });
+  return numbers[0];
+}
+
 function indexLeafCell(cell: IndexCell): Uint8Array {
   return concatBytes([bytes(varint(cell.payload.length)), cell.payload]);
 }
@@ -129,7 +191,7 @@ function packLeaf<T>(cells: T[], size: (cell: T) => number, offset = 0): T[][] {
 }
 
 function packInterior<T>(children: T[], size: (child: T) => number): T[][] {
-  return packChildren(children, (child) => 2 + size(child));
+  return packChildren(children, (child) => 6 + size(child));
 }
 
 function packChildren<T>(children: T[], addedSize: (child: T) => number): T[][] {

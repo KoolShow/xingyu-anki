@@ -1,13 +1,14 @@
 import { buildSqlite, type SqlTable } from "./sqlite.ts";
 import { createZip } from "./zip.ts";
-import { cardsFrom, parseXingyu, type DeckCard, type XingyuData } from "./xingyu.ts";
-import type { ExternalDetails, ExternalDetailsMap } from "./external.ts";
+import { cardsFrom, definitionsFrom, parseXingyu, type DeckCard, type XingyuData } from "./xingyu.ts";
+import type { ExternalDetails, ExternalDetailsMap, ExternalGlyph } from "./external.ts";
 
 const DECK_ID = 1_765_000_000_001;
 const MODEL_ID = 1_765_000_000_002;
 const DEFAULT_DECK_NAME = "外星来信";
 const DEFAULT_DESCRIPTION =
   "原作：<i>外星来信（Message From Aliens）</i>；兴语字体与翻译：windlandneko。" +
+  "建议完成此游戏的全部字典后再使用，当心剧透。禁止二次分发产物！" +
   "非官方同人作品，仅限个人非商业使用。";
 
 const LATEX_PRE =
@@ -116,6 +117,7 @@ export function buildApkgFromJson(input: string | Uint8Array, options: ApkgOptio
 export function buildApkg(data: XingyuData, options: ApkgOptions = {}): Uint8Array {
   const cards = cardsFrom(data, options.dictionary);
   if (!cards.length) throw new Error("no entries with both name and meaning");
+  const definitions = definitionsFrom(data, options.dictionary);
 
   const ms = options.timestamp ?? Date.now();
   const seconds = Math.floor(ms / 1000);
@@ -123,17 +125,58 @@ export function buildApkg(data: XingyuData, options: ApkgOptions = {}): Uint8Arr
   const description = options.description ?? DEFAULT_DESCRIPTION;
 
   const model = {
-    css:
-      '@font-face { font-family: "Xingyu"; src: url("_Xingyu-VF.ttf"); }\n' +
-      ".card { font-family: sans-serif; text-align: center; }\n" +
-      '.glyph { font-family: "Xingyu"; font-size: 96px; line-height: 1.2; }\n' +
-      ".word { font-size: 24px; color: #666; }\n" +
-      ".definition { font-size: 28px; margin-top: 8px; }\n" +
-      ".meaning { font-size: 20px; color: #555; margin-top: 6px; }\n" +
-      ".extra { font-size: 18px; color: #444; margin-top: 10px; }\n" +
-      ".extra b { color: #222; }\n" +
-      '.glyphs { font-family: "Xingyu"; font-size: 28px; }\n' +
-      '.examples { font-family: "Xingyu"; font-size: 26px; line-height: 1.5; }',
+    css: `
+@font-face { font-family: "Xingyu"; src: url("_Xingyu-VF.ttf"); }
+.card {
+  --fg: #1f2937; --muted: #737373; --canvas: #fffaf0; --panel: #fff;
+  --border: #d1d5db; --radius: 7px;
+  font-family: Georgia, "Songti SC", "Noto Serif CJK SC", serif;
+  background: var(--canvas); color: var(--fg); font-size: 17px; line-height: 1.5; text-align: left;
+}
+:root.night-mode, :root .night_mode, :root .nightMode, [data-bs-theme="dark"] {
+  --fg: #e5e7eb; --muted: #a3a3a3; --canvas: #2c2c2c; --panel: #363636; --border: #494949;
+}
+.CardSide { max-width: 720px; margin: 0 auto; padding: 8px 12px 20px; }
+.Question {
+  min-height: 180px; display: flex; align-items: center; justify-content: center;
+  padding: 16px; border: 1px solid var(--border); border-radius: var(--radius) var(--radius) 0 0;
+  background: var(--panel);
+}
+.VocabKanji { margin: 0; font-family: "Xingyu"; font-size: 96px; font-weight: normal; line-height: 1.1; }
+.Answer {
+  display: flex; flex-direction: column; gap: 8px; padding: 14px 18px;
+  border: 1px solid var(--border); border-top: 0; border-radius: 0 0 var(--radius) var(--radius);
+  background: var(--panel);
+}
+.Word { font-size: 22px; font-weight: 600; }
+.Definition { font-size: 20px; }
+.Meaning { color: var(--muted); font-size: 16px; }
+.Field { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
+.Label { color: var(--muted); font-size: 13px; }
+.GlyphRow { display: flex; flex-wrap: wrap; align-items: flex-start; }
+.xy { display: inline-flex; flex-direction: column; align-items: center; margin: 2px 5px 4px 0; vertical-align: top; }
+.xy-char { font-family: "Xingyu"; font-size: 2em; line-height: 1; }
+.xy-def {
+  max-width: 8em; margin-top: 2px; color: var(--muted); font-size: 11px;
+  line-height: 1.25; text-align: center; overflow-wrap: anywhere;
+}
+.big .xy-char { font-size: 96px; }
+.big .xy-def { max-width: 12em; margin-top: 6px; font-size: 15px; }
+.SentenceList {
+  margin-top: 14px; padding: 12px 16px;
+  border: 1px solid var(--border); border-radius: var(--radius); background: var(--panel);
+}
+.Sentence { display: flex; flex-wrap: wrap; align-items: flex-start; padding: 8px 0; }
+.Sentence + .Sentence { border-top: 1px solid var(--border); }
+.Sentence .xy-char { font-size: 28px; }
+.Sentence .xy-def { max-width: 7em; font-size: 10px; }
+.Notice { margin-top: 10px; color: var(--muted); font-size: 12px; text-align: center; }
+@media (max-width: 475px) {
+  .CardSide { padding: 0 6px 16px; }
+  .Answer { padding: 12px; }
+  .VocabKanji, .big .xy-char { font-size: 72px; }
+}
+`,
     did: DECK_ID,
     flds: [
       field("字符", 0),
@@ -149,7 +192,7 @@ export function buildApkg(data: XingyuData, options: ApkgOptions = {}): Uint8Arr
     latexPre: LATEX_PRE,
     latexsvg: false,
     mod: seconds,
-    name: "兴语 Xingyu",
+    name: "外星来信",
     req: [[0, "all", [0]]],
     sortf: 1,
     tags: [],
@@ -157,13 +200,26 @@ export function buildApkg(data: XingyuData, options: ApkgOptions = {}): Uint8Arr
       {
         name: "Card 1",
         ord: 0,
-        qfmt: '<div class="glyph">{{字符}}</div>',
-        afmt:
-          '{{FrontSide}}<hr id="answer"><div class="word">{{原文}}</div>' +
-          '<div class="definition">{{释义}}</div><div class="meaning">{{翻译}}</div>' +
-          '{{#词性}}<div class="extra"><b>词性</b> {{词性}}</div>{{/词性}}' +
-          '{{#组成}}<div class="extra"><b>组成</b> <span class="glyphs">{{组成}}</span></div>{{/组成}}' +
-          '{{#例句}}<div class="extra"><b>例句</b><div class="examples">{{例句}}</div></div>{{/例句}}',
+        qfmt: `
+<main class="CardSide">
+  <header class="Question"><h1 class="VocabKanji">{{字符}}</h1></header>
+  <div class="Notice">建议完成此游戏的全部字典后再使用，当心剧透</div>
+</main>`,
+        afmt: `
+<main class="CardSide">
+  <header class="Question">
+    <h1 class="VocabKanji"><span class="xy big"><span class="xy-char">{{字符}}</span><span class="xy-def">{{释义}}</span></span></h1>
+  </header>
+  <section class="Answer">
+    <div class="Word">{{原文}}</div>
+    <div class="Definition">{{释义}}</div>
+    <div class="Meaning">{{翻译}}</div>
+    {{#词性}}<div class="Field"><span class="Label">词性</span><div class="GlyphRow">{{词性}}</div></div>{{/词性}}
+    {{#组成}}<div class="Field"><span class="Label">组成</span><div class="GlyphRow">{{组成}}</div></div>{{/组成}}
+  </section>
+  {{#例句}}<section class="SentenceList"><div class="Label">例句</div>{{例句}}</section>{{/例句}}
+  <div class="Notice">禁止二次分发产物！</div>
+</main>`,
         bafmt: "",
         bqfmt: "",
         bfont: "",
@@ -234,7 +290,9 @@ export function buildApkg(data: XingyuData, options: ApkgOptions = {}): Uint8Arr
   };
 
   const base = ms;
-  const notes = cards.map((card, i) => noteRow(card, base + i, seconds, options.external?.get(card.cp)));
+  const notes = cards.map((card, i) =>
+    noteRow(card, base + i, seconds, options.external?.get(card.cp), definitions),
+  );
   const cardRows = cards.map((_, i) => [
     base + 10_000 + i,
     base + i,
@@ -299,9 +357,14 @@ function noteRow(
   card: DeckCard,
   id: number,
   seconds: number,
-  details?: ExternalDetails,
+  details: ExternalDetails | undefined,
+  definitions: Map<string, string>,
 ): (string | number)[] {
-  const examples = (details?.examples ?? []).map(escapeHtml).join("<br>");
+  const wordType = renderGlyphs(details?.wordType ?? [], definitions);
+  const components = renderGlyphs(details?.components ?? [], definitions);
+  const examples = (details?.examples ?? [])
+    .map((sentence) => `<div class="Sentence">${renderGlyphs(sentence, definitions)}</div>`)
+    .join("");
   return [
     id,
     card.cp,
@@ -310,12 +373,22 @@ function noteRow(
     -1,
     " ",
     `${escapeHtml(card.char)}\x1f${escapeHtml(card.name)}\x1f${escapeHtml(card.definition)}\x1f${escapeHtml(card.meaning)}` +
-      `\x1f${escapeHtml(details?.wordType ?? "")}\x1f${escapeHtml(details?.components ?? "")}\x1f${examples}`,
+      `\x1f${wordType}\x1f${components}\x1f${examples}`,
     card.name,
     0,
     0,
     "",
   ];
+}
+
+function renderGlyphs(glyphs: ExternalGlyph[], definitions: Map<string, string>): string {
+  return glyphs
+    .map(
+      (glyph) =>
+        `<span class="xy"><span class="xy-char">${escapeHtml(glyph.char)}</span>` +
+        `<span class="xy-def">${escapeHtml(definitions.get(glyph.cp) ?? "?")}</span></span>`,
+    )
+    .join("");
 }
 
 function field(name: string, ord: number) {

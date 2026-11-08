@@ -46,6 +46,11 @@ export function cardsFrom(data: XingyuData, dictionary?: Record<string, string>)
   return cards;
 }
 
+/** First definition for every entry, used to annotate glyphs anywhere on a card. */
+export function definitionsFrom(data: XingyuData, dictionary?: Record<string, string>): Map<string, string> {
+  return new Map(data.entries.map((entry) => [entry.cp, firstDefinition(entry, dictionary)]));
+}
+
 /** The player's own translation is the first definition; "?" means unknown. */
 function firstDefinition(entry: XingyuEntry, dictionary?: Record<string, string>): string {
   if (!dictionary) return "?";

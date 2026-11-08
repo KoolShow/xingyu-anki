@@ -5,10 +5,15 @@ export const EXTERNAL_DATA_URL =
 
 export const EXTERNAL_DATA_WARNING = `将会从 ${EXTERNAL_DATA_URL} 下载未经授权的数据。`;
 
+export interface ExternalGlyph {
+  cp: string;
+  char: string;
+}
+
 export interface ExternalDetails {
-  wordType: string;
-  components: string;
-  examples: string[];
+  wordType: ExternalGlyph[];
+  components: ExternalGlyph[];
+  examples: ExternalGlyph[][];
 }
 
 export type ExternalDetailsMap = Map<string, ExternalDetails>;
@@ -54,28 +59,20 @@ export function buildExternalData(raw: unknown, entries: XingyuEntry[]): Externa
     };
     const dictionary = mfa.dictionary ?? {};
 
-    const wordType = unique(
-      glyphIds(dictionary.wordtype)
-        .map((id) => byIndex[id]?.name)
-        .filter((name): name is string => Boolean(name)),
-    ).join(" / ");
+    const wordType = glyphList(glyphIds(dictionary.wordtype), byIndex, true);
 
     const own = entry.cp;
     const atoms = glyphIds(mfa.atoms).filter((id) => byIndex[id] && byIndex[id]!.cp !== own);
     const radicals = glyphIds(dictionary.radicals).filter((id) => byIndex[id] && byIndex[id]!.cp !== own);
-    const components = (atoms.length ? atoms : radicals)
-      .map((id) => charOf(byIndex[id]!))
-      .join("");
+    const components = glyphList(atoms.length ? atoms : radicals, byIndex, true);
 
     const examples = (mfa.occurrences ?? [])
       .slice(0, EXAMPLE_LIMIT)
       .map((occurrence) => {
         const sentence = sentences[occurrence.sentence ?? -1] as { sentence?: GlyphRef[] } | undefined;
-        return glyphIds(sentence?.sentence)
-          .map((id) => (byIndex[id] ? charOf(byIndex[id]!) : ""))
-          .join("");
+        return glyphList(glyphIds(sentence?.sentence), byIndex);
       })
-      .filter(Boolean);
+      .filter((sentence) => sentence.length > 0);
 
     result.set(entry.cp, { wordType, components, examples });
   }
@@ -95,8 +92,16 @@ function charOf(entry: XingyuEntry): string {
   return String.fromCodePoint(parseInt(entry.cp, 16));
 }
 
-function unique(values: string[]): string[] {
-  return [...new Set(values)];
+function glyphList(ids: number[], byIndex: (XingyuEntry | null)[], unique = false): ExternalGlyph[] {
+  const seen = new Set<string>();
+  const result: ExternalGlyph[] = [];
+  for (const id of ids) {
+    const entry = byIndex[id];
+    if (!entry || (unique && seen.has(entry.cp))) continue;
+    seen.add(entry.cp);
+    result.push({ cp: entry.cp, char: charOf(entry) });
+  }
+  return result;
 }
 
 function tokenForName(name: string): string {
