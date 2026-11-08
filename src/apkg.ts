@@ -7,9 +7,7 @@ const DECK_ID = 1_765_000_000_001;
 const MODEL_ID = 1_765_000_000_002;
 const DEFAULT_DECK_NAME = "外星来信";
 const DEFAULT_DESCRIPTION =
-  "原作：<i>外星来信（Message From Aliens）</i>；兴语字体与翻译：windlandneko。" +
-  "建议完成此游戏的全部字典后再使用，当心剧透。禁止二次分发产物！" +
-  "非官方同人作品，仅限个人非商业使用。";
+  "原作：<i>外星来信（Message From Aliens）</i>；兴语字体与翻译：windlandneko。";
 
 const LATEX_PRE =
   "\\documentclass[12pt]{article}\n\\special{papersize=3in,5in}\n\\usepackage[utf8]{inputenc}\n" +
@@ -118,6 +116,12 @@ export function buildApkg(data: XingyuData, options: ApkgOptions = {}): Uint8Arr
   const cards = cardsFrom(data, options.dictionary);
   if (!cards.length) throw new Error("no entries with both name and meaning");
   const definitions = definitionsFrom(data, options.dictionary);
+  const byName = new Map(data.entries.map((entry) => [entry.name, entry]));
+  const metaGlyph = (name: string): ExternalGlyph | undefined => {
+    const entry = byName.get(name);
+    return entry ? { cp: entry.cp, char: String.fromCodePoint(parseInt(entry.cp, 16)) } : undefined;
+  };
+  const meta = { be: metaGlyph("be"), de: metaGlyph("de"), radicial: metaGlyph("radicial") };
 
   const ms = options.timestamp ?? Date.now();
   const seconds = Math.floor(ms / 1000);
@@ -128,13 +132,13 @@ export function buildApkg(data: XingyuData, options: ApkgOptions = {}): Uint8Arr
     css: `
 @font-face { font-family: "Xingyu"; src: url("_Xingyu-VF.ttf"); }
 .card {
-  --fg: #1f2937; --muted: #737373; --canvas: #fffaf0; --panel: #fff;
+  --fg: #1f2937; --muted: #737373; --panel: #fff;
   --border: #d1d5db; --radius: 7px;
   font-family: Georgia, "Songti SC", "Noto Serif CJK SC", serif;
-  background: var(--canvas); color: var(--fg); font-size: 17px; line-height: 1.5; text-align: left;
+  color: var(--fg); font-size: 17px; line-height: 1.5; text-align: left;
 }
 :root.night-mode, :root .night_mode, :root .nightMode, [data-bs-theme="dark"] {
-  --fg: #e5e7eb; --muted: #a3a3a3; --canvas: #2c2c2c; --panel: #363636; --border: #494949;
+  --fg: #e5e7eb; --muted: #a3a3a3; --panel: #363636; --border: #494949;
 }
 .CardSide { max-width: 720px; margin: 0 auto; padding: 8px 12px 20px; }
 .Question {
@@ -151,8 +155,6 @@ export function buildApkg(data: XingyuData, options: ApkgOptions = {}): Uint8Arr
 .Word { font-size: 22px; font-weight: 600; }
 .Definition { font-size: 20px; }
 .Meaning { color: var(--muted); font-size: 16px; }
-.Field { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
-.Label { color: var(--muted); font-size: 13px; }
 .GlyphRow { display: flex; flex-wrap: wrap; align-items: flex-start; }
 .xy { display: inline-flex; flex-direction: column; align-items: center; margin: 2px 5px 4px 0; vertical-align: top; }
 .xy-char { font-family: "Xingyu"; font-size: 2em; line-height: 1; }
@@ -170,7 +172,6 @@ export function buildApkg(data: XingyuData, options: ApkgOptions = {}): Uint8Arr
 .Sentence + .Sentence { border-top: 1px solid var(--border); }
 .Sentence .xy-char { font-size: 28px; }
 .Sentence .xy-def { max-width: 7em; font-size: 10px; }
-.Notice { margin-top: 10px; color: var(--muted); font-size: 12px; text-align: center; }
 @media (max-width: 475px) {
   .CardSide { padding: 0 6px 16px; }
   .Answer { padding: 12px; }
@@ -203,7 +204,6 @@ export function buildApkg(data: XingyuData, options: ApkgOptions = {}): Uint8Arr
         qfmt: `
 <main class="CardSide">
   <header class="Question"><h1 class="VocabKanji">{{字符}}</h1></header>
-  <div class="Notice">建议完成此游戏的全部字典后再使用，当心剧透</div>
 </main>`,
         afmt: `
 <main class="CardSide">
@@ -214,11 +214,10 @@ export function buildApkg(data: XingyuData, options: ApkgOptions = {}): Uint8Arr
     <div class="Word">{{原文}}</div>
     <div class="Definition">{{释义}}</div>
     <div class="Meaning">{{翻译}}</div>
-    {{#词性}}<div class="Field"><span class="Label">词性</span><div class="GlyphRow">{{词性}}</div></div>{{/词性}}
-    {{#组成}}<div class="Field"><span class="Label">组成</span><div class="GlyphRow">{{组成}}</div></div>{{/组成}}
+    {{#词性}}<div class="GlyphRow">{{词性}}</div>{{/词性}}
+    {{#组成}}<div class="GlyphRow">{{组成}}</div>{{/组成}}
   </section>
-  {{#例句}}<section class="SentenceList"><div class="Label">例句</div>{{例句}}</section>{{/例句}}
-  <div class="Notice">禁止二次分发产物！</div>
+  {{#例句}}<section class="SentenceList">{{例句}}</section>{{/例句}}
 </main>`,
         bafmt: "",
         bqfmt: "",
@@ -291,7 +290,7 @@ export function buildApkg(data: XingyuData, options: ApkgOptions = {}): Uint8Arr
 
   const base = ms;
   const notes = cards.map((card, i) =>
-    noteRow(card, base + i, seconds, options.external?.get(card.cp), definitions),
+    noteRow(card, base + i, seconds, options.external?.get(card.cp), definitions, meta),
   );
   const cardRows = cards.map((_, i) => [
     base + 10_000 + i,
@@ -359,9 +358,24 @@ function noteRow(
   seconds: number,
   details: ExternalDetails | undefined,
   definitions: Map<string, string>,
+  meta: { be?: ExternalGlyph; de?: ExternalGlyph; radicial?: ExternalGlyph },
 ): (string | number)[] {
-  const wordType = renderGlyphs(details?.wordType ?? [], definitions);
-  const components = renderGlyphs(details?.components ?? [], definitions);
+  const target = { cp: card.cp, char: card.char };
+  const wordType = details?.wordType.length
+    ? renderGlyphs([target, ...(meta.be ? [meta.be] : []), ...details.wordType], definitions)
+    : "";
+  const components = details?.components.length
+    ? renderGlyphs(
+        [
+          target,
+          ...(meta.de ? [meta.de] : []),
+          ...(meta.radicial ? [meta.radicial] : []),
+          ...(meta.be ? [meta.be] : []),
+          ...details.components,
+        ],
+        definitions,
+      )
+    : "";
   const examples = (details?.examples ?? [])
     .map((sentence) => `<div class="Sentence">${renderGlyphs(sentence, definitions)}</div>`)
     .join("");
