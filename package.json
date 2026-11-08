@@ -15,5 +15,8 @@
     "build": "tsc",
     "check": "tsc --noEmit",
     "web": "tsc && python -m http.server 5000"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2"
   }
 }
