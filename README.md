@@ -17,7 +17,13 @@ npm run deck
 node --experimental-strip-types src/cli.ts --save alienmessage1.sav
 ```
 
-网页入口：`npm run build` 后用 HTTP 服务打开 `index.html`。
+可选外部数据（词性、字形组成、例句）：
+
+```sh
+node --experimental-strip-types src/cli.ts --external
+```
+
+网页入口：`npm run build` 后用 HTTP 服务打开 `index.html`，可勾选“使用外部数据”。
 
 ## 授权
 

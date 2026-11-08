@@ -1,6 +1,7 @@
 import { buildSqlite, type SqlTable } from "./sqlite.ts";
 import { createZip } from "./zip.ts";
 import { cardsFrom, parseXingyu, type DeckCard, type XingyuData } from "./xingyu.ts";
+import type { ExternalDetails, ExternalDetailsMap } from "./external.ts";
 
 const DECK_ID = 1_765_000_000_001;
 const MODEL_ID = 1_765_000_000_002;
@@ -104,6 +105,8 @@ export interface ApkgOptions {
   media?: ApkgMedia[];
   /** Player translations from a save file, keyed by word name. */
   dictionary?: Record<string, string>;
+  /** Optional details from the external MFA dictionary, keyed by code point. */
+  external?: ExternalDetailsMap;
 }
 
 export function buildApkgFromJson(input: string | Uint8Array, options: ApkgOptions = {}): Uint8Array {
@@ -126,13 +129,20 @@ export function buildApkg(data: XingyuData, options: ApkgOptions = {}): Uint8Arr
       '.glyph { font-family: "Xingyu"; font-size: 96px; line-height: 1.2; }\n' +
       ".word { font-size: 24px; color: #666; }\n" +
       ".definition { font-size: 28px; margin-top: 8px; }\n" +
-      ".meaning { font-size: 20px; color: #555; margin-top: 6px; }",
+      ".meaning { font-size: 20px; color: #555; margin-top: 6px; }\n" +
+      ".extra { font-size: 18px; color: #444; margin-top: 10px; }\n" +
+      ".extra b { color: #222; }\n" +
+      '.glyphs { font-family: "Xingyu"; font-size: 28px; }\n' +
+      '.examples { font-family: "Xingyu"; font-size: 26px; line-height: 1.5; }',
     did: DECK_ID,
     flds: [
       field("字符", 0),
       field("原文", 1),
       field("释义", 2),
       field("翻译", 3),
+      field("词性", 4),
+      field("组成", 5),
+      field("例句", 6),
     ],
     id: MODEL_ID,
     latexPost: "\\end{document}",
@@ -150,7 +160,10 @@ export function buildApkg(data: XingyuData, options: ApkgOptions = {}): Uint8Arr
         qfmt: '<div class="glyph">{{字符}}</div>',
         afmt:
           '{{FrontSide}}<hr id="answer"><div class="word">{{原文}}</div>' +
-          '<div class="definition">{{释义}}</div><div class="meaning">{{翻译}}</div>',
+          '<div class="definition">{{释义}}</div><div class="meaning">{{翻译}}</div>' +
+          '{{#词性}}<div class="extra"><b>词性</b> {{词性}}</div>{{/词性}}' +
+          '{{#组成}}<div class="extra"><b>组成</b> <span class="glyphs">{{组成}}</span></div>{{/组成}}' +
+          '{{#例句}}<div class="extra"><b>例句</b><div class="examples">{{例句}}</div></div>{{/例句}}',
         bafmt: "",
         bqfmt: "",
         bfont: "",
@@ -221,7 +234,7 @@ export function buildApkg(data: XingyuData, options: ApkgOptions = {}): Uint8Arr
   };
 
   const base = ms;
-  const notes = cards.map((card, i) => noteRow(card, base + i, seconds));
+  const notes = cards.map((card, i) => noteRow(card, base + i, seconds, options.external?.get(card.cp)));
   const cardRows = cards.map((_, i) => [
     base + 10_000 + i,
     base + i,
@@ -282,7 +295,13 @@ export function buildApkg(data: XingyuData, options: ApkgOptions = {}): Uint8Arr
   ]);
 }
 
-function noteRow(card: DeckCard, id: number, seconds: number): (string | number)[] {
+function noteRow(
+  card: DeckCard,
+  id: number,
+  seconds: number,
+  details?: ExternalDetails,
+): (string | number)[] {
+  const examples = (details?.examples ?? []).map(escapeHtml).join("<br>");
   return [
     id,
     card.cp,
@@ -290,7 +309,8 @@ function noteRow(card: DeckCard, id: number, seconds: number): (string | number)
     seconds,
     -1,
     " ",
-    `${escapeHtml(card.char)}\x1f${escapeHtml(card.name)}\x1f${escapeHtml(card.definition)}\x1f${escapeHtml(card.meaning)}`,
+    `${escapeHtml(card.char)}\x1f${escapeHtml(card.name)}\x1f${escapeHtml(card.definition)}\x1f${escapeHtml(card.meaning)}` +
+      `\x1f${escapeHtml(details?.wordType ?? "")}\x1f${escapeHtml(details?.components ?? "")}\x1f${examples}`,
     card.name,
     0,
     0,

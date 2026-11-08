@@ -1,9 +1,16 @@
-import { buildApkgFromJson } from "./apkg.ts";
+import { buildApkg } from "./apkg.ts";
+import { EXTERNAL_DATA_WARNING, loadExternalData } from "./external.ts";
 import { parseSave } from "./save.ts";
+import { parseXingyu } from "./xingyu.ts";
 
 const button = document.querySelector<HTMLButtonElement>("#build")!;
 const saveInput = document.querySelector<HTMLInputElement>("#save")!;
+const externalInput = document.querySelector<HTMLInputElement>("#external")!;
 const status = document.querySelector<HTMLParagraphElement>("#status")!;
+
+externalInput.addEventListener("change", () => {
+  if (externalInput.checked) alert(EXTERNAL_DATA_WARNING);
+});
 
 const sources = [
   "./vendor/xingyu/data/xingyu.json",
@@ -44,11 +51,14 @@ button.addEventListener("click", async () => {
   status.textContent = "正在生成…";
   try {
     const [json, font] = await Promise.all([loadText(sources), loadBytes(fontSources)]);
+    const data = parseXingyu(json);
     const file = saveInput.files?.[0];
     const dictionary = file ? parseSave(await file.text()) : undefined;
-    const apkg = buildApkgFromJson(json, {
+    const external = externalInput.checked ? await loadExternalData(data.entries) : undefined;
+    const apkg = buildApkg(data, {
       media: [{ name: "_Xingyu-VF.ttf", data: font }],
       dictionary,
+      external,
     });
     const buffer = apkg.buffer.slice(apkg.byteOffset, apkg.byteOffset + apkg.byteLength) as ArrayBuffer;
     const url = URL.createObjectURL(new Blob([buffer], { type: "application/octet-stream" }));
