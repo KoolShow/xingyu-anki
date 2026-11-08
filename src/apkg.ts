@@ -132,25 +132,23 @@ export function buildApkg(data: XingyuData, options: ApkgOptions = {}): Uint8Arr
     css: `
 @font-face { font-family: "Xingyu"; src: url("_Xingyu-VF.ttf"); }
 .card {
-  --fg: #1f2937; --muted: #737373; --panel: #fff;
+  --fg: #1f2937; --muted: #737373;
   --border: #d1d5db; --radius: 7px;
   font-family: Georgia, "Songti SC", "Noto Serif CJK SC", serif;
   color: var(--fg); font-size: 17px; line-height: 1.5; text-align: left;
 }
 :root.night-mode, :root .night_mode, :root .nightMode, [data-bs-theme="dark"] {
-  --fg: #e5e7eb; --muted: #a3a3a3; --panel: #363636; --border: #494949;
+  --fg: #e5e7eb; --muted: #a3a3a3; --border: #494949;
 }
 .CardSide { max-width: 720px; margin: 0 auto; padding: 8px 12px 20px; }
 .Question {
   min-height: 180px; display: flex; align-items: center; justify-content: center;
   padding: 16px; border: 1px solid var(--border); border-radius: var(--radius) var(--radius) 0 0;
-  background: var(--panel);
 }
 .VocabKanji { margin: 0; font-family: "Xingyu"; font-size: 96px; font-weight: normal; line-height: 1.1; }
 .Answer {
   display: flex; flex-direction: column; gap: 8px; padding: 14px 18px;
   border: 1px solid var(--border); border-top: 0; border-radius: 0 0 var(--radius) var(--radius);
-  background: var(--panel);
 }
 .Word { font-size: 22px; font-weight: 600; }
 .Definition { font-size: 20px; }
@@ -166,7 +164,7 @@ export function buildApkg(data: XingyuData, options: ApkgOptions = {}): Uint8Arr
 .big .xy-def { max-width: 12em; margin-top: 6px; font-size: 15px; }
 .SentenceList {
   margin-top: 14px; padding: 12px 16px;
-  border: 1px solid var(--border); border-radius: var(--radius); background: var(--panel);
+  border: 1px solid var(--border); border-radius: var(--radius);
 }
 .Sentence { display: flex; flex-wrap: wrap; align-items: flex-start; padding: 8px 0; }
 .Sentence + .Sentence { border-top: 1px solid var(--border); }
