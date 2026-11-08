@@ -42,7 +42,7 @@ try {
 }
 
 const apkg = buildApkgFromJson(json, {
-  deckName: "兴语 Xingyu · 外星来信",
+  deckName: "外星来信",
   media: font ? [{ name: "_Xingyu-VF.ttf", data: font }] : [],
   dictionary,
 });

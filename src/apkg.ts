@@ -4,7 +4,7 @@ import { cardsFrom, parseXingyu, type DeckCard, type XingyuData } from "./xingyu
 
 const DECK_ID = 1_765_000_000_001;
 const MODEL_ID = 1_765_000_000_002;
-const DEFAULT_DECK_NAME = "兴语 Xingyu · 外星来信";
+const DEFAULT_DECK_NAME = "外星来信";
 const DEFAULT_DESCRIPTION =
   "原作：<i>外星来信（Message From Aliens）</i>；兴语字体与翻译：windlandneko。" +
   "非官方同人作品，仅限个人非商业使用。";
