@@ -1,0 +1,19 @@
+{
+  "name": "xingyu-anki",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Generate an Anki deck from windlandneko/xingyu",
+  "engines": {
+    "node": ">=22.6"
+  },
+  "bin": {
+    "xingyu-anki": "src/cli.ts"
+  },
+  "scripts": {
+    "deck": "node --experimental-strip-types src/cli.ts",
+    "build": "tsc",
+    "check": "tsc --noEmit",
+    "web": "tsc && python -m http.server 5000"
+  }
+}

@@ -1,0 +1,3 @@
+[submodule "vendor/xingyu"]
+	path = vendor/xingyu
+	url = https://github.com/windlandneko/xingyu
