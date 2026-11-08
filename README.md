@@ -8,7 +8,7 @@
 
 ## 用法
 
-打开 [xingyu-anki](https://github.com/KoolShow/xingyu-anki) 项目页获取卡包。
+使用 [Anki](https://apps.ankiweb.net/) 导入卡包。
 
 ## 构建
 
