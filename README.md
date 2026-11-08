@@ -2,11 +2,15 @@
 
 从 [windlandneko/xingyu](https://github.com/windlandneko/xingyu) 生成 Anki 卡包。
 
-原作：《外星来信》（Message From Aliens）。
+原作：[《外星来信》（Message From Aliens）](https://store.steampowered.com/app/1858720/Message_From_Aliens/)。
 
 建议完成此游戏的全部字典后再使用，当心剧透。禁止二次分发产物！
 
 ## 用法
+
+打开 [xingyu-anki](https://github.com/KoolShow/xingyu-anki) 项目页获取卡包。
+
+## 构建
 
 ```sh
 git submodule update --init
