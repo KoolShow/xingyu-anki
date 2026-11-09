@@ -22,7 +22,7 @@ jobs:
           submodules: true
 
       - name: Update submodule to upstream HEAD
-        run: git submodule update --remote --merge vendor/xingyu
+        run: git submodule update --remote --checkout vendor/xingyu
 
       - name: Commit and push if changed
         run: |
